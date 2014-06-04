@@ -54,6 +54,8 @@ class Base(object):
     :type basepath: unicode
     """
 
+    version = '0.1'
+
     # Useful if we want to change those locations later without rewriting
     # the code which uses Storage
     repositories = 'repositories'
@@ -65,7 +67,31 @@ class Base(object):
     supports_bytes_range = False
 
     def __init__(self, path=None, config=None):
-        pass
+        self._check_version()
+
+    def _check_version(self):
+        version_path = self.version_path()
+        try:
+            version = self.get_content(path=version_path)
+        except exceptions.FileNotFoundError:
+            version = '0.0'
+        else:
+            version = version.replace('.', '_')
+        current_version = version.replace('.', '_')
+        if version != current_version:
+            upgrader = getattr(self, '_upgrade_{0}_to_{1}'.format(
+                version, current_version))
+            upgrader()
+
+    def _upgrade_0_0_to_0_1(self):
+        for namespace, repository in self.get_repositories():
+            for tag, image_id in self.tags(
+                    namespace=namespace, repository=repository):
+                self.add_references(
+                    image_id=image_id, namespace=namespace,
+                    repository=repository, tag=tag)
+        for image_id in self.get_images():
+            self._check_references(image_id=image_id)
 
     def get_images(self):
         """Iterate through images in storage
@@ -200,6 +226,11 @@ class Base(object):
             self._check_references(image_id=id)
 
     # FIXME(samalba): Move all path resolver in each module (out of the base)
+    def version_path(self):
+        """Path to the version of the storage format
+        """
+        return 'version'
+
     def images_list_path(self, namespace, repository):
         repository_path = self.repository_path(
             namespace=namespace, repository=repository)
