@@ -67,6 +67,30 @@ class Base(object):
     def __init__(self, path=None, config=None):
         pass
 
+    def get_repositories(self):
+        """Iterate through repositories in storage
+
+        This helper is useful for upgrades and other storage
+        maintenance.  Yields tuples:
+
+          (namespace, repository)
+        """
+        try:
+            namespace_paths = list(
+                self.list_directory(path=self.repositories))
+        except exceptions.FileNotFoundError:
+            namespace_paths = []
+        for namespace_path in namespace_paths:
+            namespace = namespace_path.rsplit('/', 1)[-1]
+            try:
+                repository_paths = list(
+                    self.list_directory(path=namespace_path))
+            except exceptions.FileNotFoundError:
+                repository_paths = []
+            for path in repository_paths:
+                repository = path.rsplit('/', 1)[-1]
+                yield (namespace, repository)
+
     # FIXME(samalba): Move all path resolver in each module (out of the base)
     def images_list_path(self, namespace, repository):
         repository_path = self.repository_path(
