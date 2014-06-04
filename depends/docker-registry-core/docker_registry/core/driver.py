@@ -67,6 +67,21 @@ class Base(object):
     def __init__(self, path=None, config=None):
         pass
 
+    def get_images(self):
+        """Iterate through images in storage
+
+        This helper is useful for upgrades and other storage
+        maintenance.  Yields image ids.
+        """
+        try:
+            image_paths = list(
+                self.list_directory(path=self.images))
+        except exceptions.FileNotFoundError:
+            image_paths = []
+        for image_path in image_paths:
+            image_id = image_path.rsplit('/', 1)[-1]
+            yield image_id
+
     def get_repositories(self):
         """Iterate through repositories in storage
 
