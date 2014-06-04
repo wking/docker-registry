@@ -129,26 +129,36 @@ class Base(object):
             namespace=namespace, repository=repository)
         return '{0}/_images_list'.format(repository_path)
 
+    def image_path(self, image_id):
+        return '{0}/{1}'.format(self.images, image_id)
+
     def image_json_path(self, image_id):
-        return '{0}/{1}/json'.format(self.images, image_id)
+        image_path = self.image_path(image_id=image_id)
+        return '{0}/json'.format(image_path)
 
     def image_mark_path(self, image_id):
-        return '{0}/{1}/_inprogress'.format(self.images, image_id)
+        image_path = self.image_path(image_id=image_id)
+        return '{0}/_inprogress'.format(image_path)
 
     def image_checksum_path(self, image_id):
-        return '{0}/{1}/_checksum'.format(self.images, image_id)
+        image_path = self.image_path(image_id=image_id)
+        return '{0}/_checksum'.format(image_path)
 
     def image_layer_path(self, image_id):
-        return '{0}/{1}/layer'.format(self.images, image_id)
+        image_path = self.image_path(image_id=image_id)
+        return '{0}/layer'.format(image_path)
 
     def image_ancestry_path(self, image_id):
-        return '{0}/{1}/ancestry'.format(self.images, image_id)
+        image_path = self.image_path(image_id=image_id)
+        return '{0}/ancestry'.format(image_path)
 
     def image_files_path(self, image_id):
-        return '{0}/{1}/_files'.format(self.images, image_id)
+        image_path = self.image_path(image_id=image_id)
+        return '{0}/_files'.format(image_path)
 
     def image_diff_path(self, image_id):
-        return '{0}/{1}/_diff'.format(self.images, image_id)
+        image_path = self.image_path(image_id=image_id)
+        return '{0}/_diff'.format(image_path)
 
     def repository_path(self, namespace, repository):
         return '{0}/{1}/{2}'.format(
