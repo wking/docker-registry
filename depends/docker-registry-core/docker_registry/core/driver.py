@@ -106,6 +106,23 @@ class Base(object):
                 repository = path.rsplit('/', 1)[-1]
                 yield (namespace, repository)
 
+    def tags(self, namespace, repository):
+        """Iterate through a repository's tags
+
+        This helper is useful for upgrades and other storage
+        maintenance.  Yields tuples:
+
+          (tag_name, image_id)
+        """
+        tag_path = self.tag_path(namespace, repository)
+        for path in self.list_directory(tag_path):
+            full_tag_name = path.split('/').pop()
+            if not full_tag_name.startswith('tag_'):
+                continue
+            tag_name = full_tag_name[4:]
+            tag_content = self.get_content(path=path)
+            yield (tag_name, tag_content)
+
     # FIXME(samalba): Move all path resolver in each module (out of the base)
     def images_list_path(self, namespace, repository):
         repository_path = self.repository_path(
