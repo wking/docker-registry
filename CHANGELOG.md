@@ -1,5 +1,9 @@
 # Docker-registry
 
+## Unreleased
+
+ * Added refcounts for images.  Image layers no longer referenced by a tag will be automatically removed from storage.
+
 ## 0.7
 
 Major architecture rehaul, with potentially breaking changes:

@@ -188,15 +188,23 @@ def put_tag(namespace, repository, tag):
     if tag == "latest":  # TODO(dustinlacewell) : deprecate this for v2
         json_path = store.repository_json_path(namespace, repository)
         store.put_content(json_path, data)
+    store.add_references(
+        image_id=image_id, namespace=namespace, repository=repository, tag=tag)
     return toolkit.response()
 
 
 def delete_tag(namespace, repository, tag):
     logger.debug("[delete_tag] namespace={0}; repository={1}; tag={2}".format(
                  namespace, repository, tag))
-    store.remove(store.tag_path(namespace, repository, tag))
-    store.remove(store.repository_tag_json_path(namespace, repository,
-                                                tag))
+    tag_path = store.tag_path(namespace, repository, tag)
+    repository_tag_json_path = store.repository_tag_json_path(
+        namespace, repository, tag)
+    image_id = store.get_content(path=tag_path)
+    try:
+        store.remove(tag_path)
+        store.remove(repository_tag_json_path)
+    finally:
+        store.remove_references(image_id=image_id)
     sender = flask.current_app._get_current_object()
     if tag == "latest":  # TODO(wking) : deprecate this for v2
         store.remove(store.repository_json_path(namespace, repository))

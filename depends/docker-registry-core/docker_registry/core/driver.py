@@ -123,6 +123,82 @@ class Base(object):
             tag_content = self.get_content(path=path)
             yield (tag_name, tag_content)
 
+    def _add_reference(self, image_id, descendant_id, namespace, repository,
+                       tag):
+        """Increment the refcount for a particular image
+
+        Record the fact that we're needed for a particular image
+        (descendant_id) which is tagged, so we know which images are safe
+        to remove (e.g. any images that have no referring tags).
+        """
+        references_path = self.image_references_path(image_id=image_id)
+        try:
+            references = self.get_json(path=references_path)
+        except exceptions.FileNotFoundError:
+            references = {}
+        key = json.dumps([namespace, repository, tag])
+        references[key] = descendant_id
+        self.put_json(path=references_path, content=references)
+
+    def _check_references(self, image_id):
+        """Check for image references.  If orphaned, remove the image
+
+        Checks the existence of all the descendant images that (at one
+        point) referenced this image.  If any of those descendant
+        images are gone (or if they are no longer tagged with the
+        listed tag), then remove that entry from the references list.
+        If no references remain, remove this image.
+        """
+        references_path = self.image_references_path(image_id=image_id)
+        try:
+            references = self.get_json(path=references_path)
+        except exceptions.FileNotFoundError:
+            references = {}
+        changed = False
+        for namespace_repository_tag, descendant_id in list(
+                references.items()):
+            namespace, repository, tag = json.loads(namespace_repository_tag)
+            descendant_layer_path = self.image_layer_path(
+                image_id=descendant_id)
+            if self.exists(path=descendant_layer_path):
+                tag_path = self.tag_path(
+                    namespace=namespace, repository=repository, tagname=tag)
+                try:
+                    tagged_image = self.get_content(path=tag_path)
+                except exceptions.FileNotFoundError:
+                    tagged_image = None
+                if tagged_image != descendant_id:
+                    # the listed descendant is no longer tagged with this tag
+                    references.pop(namespace_repository_tag)
+                    changed = True
+            else:
+                # the listed descendant no longer exists
+                references.pop(namespace_repository_tag)
+                changed = True
+        if changed and references:
+            self.put_json(path=references_path, content=references)
+        if not references:
+            image_path = self.image_path(image_id=image_id)
+            self.remove(image_path)
+
+    def add_references(self, image_id, namespace, repository, tag):
+        """Increment ancestor refcounts
+        """
+        ancestry_path = self.image_ancestry_path(image_id=image_id)
+        ancestry = self.get_json(path=ancestry_path)
+        for id in ancestry:
+            self._add_reference(
+                image_id=id, descendant_id=image_id, namespace=namespace,
+                repository=repository, tag=tag)
+
+    def remove_references(self, image_id):
+        """Decrement ancestor refcounts and remove orphaned images
+        """
+        ancestry_path = self.image_ancestry_path(image_id=image_id)
+        ancestry = self.get_json(path=ancestry_path)
+        for id in ancestry:
+            self._check_references(image_id=id)
+
     # FIXME(samalba): Move all path resolver in each module (out of the base)
     def images_list_path(self, namespace, repository):
         repository_path = self.repository_path(
@@ -151,6 +227,10 @@ class Base(object):
     def image_ancestry_path(self, image_id):
         image_path = self.image_path(image_id=image_id)
         return '{0}/ancestry'.format(image_path)
+
+    def image_references_path(self, image_id):
+        image_path = self.image_path(image_id=image_id)
+        return '{0}/_references'.format(image_path)
 
     def image_files_path(self, image_id):
         image_path = self.image_path(image_id=image_id)
