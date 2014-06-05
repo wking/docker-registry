@@ -33,8 +33,9 @@ import pkgutil
 
 import docker_registry.drivers
 
+from . import exceptions
 from .compat import json
-from .exceptions import NotImplementedError
+
 
 logger = logging.getLogger(__name__)
 
@@ -159,21 +160,21 @@ class Base(object):
     def get_content(self, path):
         """Method to get content
         """
-        raise NotImplementedError(
+        raise exceptions.NotImplementedError(
             "You must implement get_content(self, path) on your storage %s" %
             self.__class__.__name__)
 
     def put_content(self, path, content):
         """Method to put content
         """
-        raise NotImplementedError(
+        raise exceptions.NotImplementedError(
             "You must implement put_content(self, path, content) on %s" %
             self.__class__.__name__)
 
     def stream_read(self, path, bytes_range=None):
         """Method to stream read
         """
-        raise NotImplementedError(
+        raise exceptions.NotImplementedError(
             "You must implement stream_read(self, path, , bytes_range=None) " +
             "on your storage %s" %
             self.__class__.__name__)
@@ -181,7 +182,7 @@ class Base(object):
     def stream_write(self, path, fp):
         """Method to stream write
         """
-        raise NotImplementedError(
+        raise exceptions.NotImplementedError(
             "You must implement stream_write(self, path, fp) " +
             "on your storage %s" %
             self.__class__.__name__)
@@ -189,7 +190,7 @@ class Base(object):
     def list_directory(self, path=None):
         """Method to list directory
         """
-        raise NotImplementedError(
+        raise exceptions.NotImplementedError(
             "You must implement list_directory(self, path=None) " +
             "on your storage %s" %
             self.__class__.__name__)
@@ -197,21 +198,21 @@ class Base(object):
     def exists(self, path):
         """Method to test exists
         """
-        raise NotImplementedError(
+        raise exceptions.NotImplementedError(
             "You must implement exists(self, path) on your storage %s" %
             self.__class__.__name__)
 
     def remove(self, path):
         """Method to remove
         """
-        raise NotImplementedError(
+        raise exceptions.NotImplementedError(
             "You must implement remove(self, path) on your storage %s" %
             self.__class__.__name__)
 
     def get_size(self, path):
         """Method to get the size
         """
-        raise NotImplementedError(
+        raise exceptions.NotImplementedError(
             "You must implement get_size(self, path) on your storage %s" %
             self.__class__.__name__)
 
@@ -237,7 +238,7 @@ def fetch(name):
         logger.debug("Will return docker-registry.drivers.%s.Storage" % name)
     except ImportError as e:
         logger.warn("Got exception: %s" % e)
-        raise NotImplementedError(
+        raise exceptions.NotImplementedError(
             """You requested storage driver docker_registry.drivers.%s
 which is not installed. Try `pip install docker-registry-driver-%s`
 or check your configuration. The following are currently
