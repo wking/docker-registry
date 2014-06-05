@@ -165,20 +165,21 @@ def create_tag_json(user_agent):
 def put_tag(namespace, repository, tag):
     logger.debug("[put_tag] namespace={0}; repository={1}; tag={2}".format(
                  namespace, repository, tag))
-    data = None
+    image_id = None
     try:
         # Note(dmp): unicode patch
-        data = json.loads(flask.request.data.decode('utf8'))
+        image_id = json.loads(flask.request.data.decode('utf8'))
     except ValueError:
         pass
-    if not data or not isinstance(data, basestring):
+    if not image_id or not isinstance(image_id, basestring):
         return toolkit.api_error('Invalid data')
-    if not store.exists(store.image_json_path(data)):
+    if not store.exists(store.image_json_path(image_id=image_id)):
         return toolkit.api_error('Image not found', 404)
-    store.put_content(store.tag_path(namespace, repository, tag), data)
+    store.put_content(
+        path=store.tag_path(namespace, repository, tag), content=image_id)
     sender = flask.current_app._get_current_object()
     signals.tag_created.send(sender, namespace=namespace,
-                             repository=repository, tag=tag, value=data)
+                             repository=repository, tag=tag, value=image_id)
     # Write some meta-data about the repos
     ua = flask.request.headers.get('user-agent', '')
     data = create_tag_json(user_agent=ua)
