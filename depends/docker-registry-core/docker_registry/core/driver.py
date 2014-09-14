@@ -63,12 +63,113 @@ def filter_args(f):
     return wrapper
 
 
-class Base(object):
+class Storage(object):
 
-    """Storage is a convenience class...
+    """The docker-registry side API used for image storage.
 
-    ... that describes methods that must be implemented by any backend.
-    You should inherit (or duck type) this if you are implementing your own.
+    This class doesn't actually *do* anything, it just lays out the
+    API for consistent logging.  You should either inherit from this
+    class and override the private (log-wrapped) methods, or duck type
+    the public methods.
+
+    """
+    def image_exists(self, image):
+        "Do we have that image layer in storage?  True/False."
+        raise NotImplementedError(
+            'You must implement image_exists(self, image) on your storage {0}'
+            .format(self.__class__.__name__))
+
+    def image_is_private(self, image):
+        "Does accessing this image layer require authorization?  True/False."
+        raise NotImplementedError(
+            'You must implement image_is_private(self, image) on your storage '
+            '{0}'
+            .format(self.__class__.__name__))
+
+    def image_size(self, image):
+        """Get the image layer size in bytes.
+
+        Raise FileNotFoundError if the image doesn't exist.
+
+        """
+        raise NotImplementedError(
+            'You must implement image_size(self, image) on your storage {0}'
+            .format(self.__class__.__name__))
+
+    def image_stream_read(self, image, bytes_range=None)
+        """Get a reader for streaming an image layer from the registry.
+
+        The reader should support the read() method.  bytes_range is
+        an optional (start_offset, stop_offset) tuple, which should
+        configure the reader to start at the start_offset-th byte and
+        stop before the stop_offset-th byte (like Python's
+        [start:stop] slicing).
+
+        """
+        raise NotImplementedError(
+            'You must implement image_stream_read(self, image, '
+            'bytes_range=None) on your storage {0}'
+            .format(self.__class__.__name__))
+
+    def image_stream_write(self, image, bytes_range=None)
+        """Get a writer for streaming an image layer to the registry.
+
+        The writer should support the write() method.
+
+        """
+        raise NotImplementedError(
+            'You must implement image_stream_write(self, image) on your '
+            'storage {0}'
+            .format(self.__class__.__name__))
+
+    def image_sendfile_uri(image)
+
+        """Get an X-Sendfile URI for an image layer.
+
+        This optional method gives us the information we need to serve
+        an image layer directly from a reverse-proxy that's wrapping
+        the registry [1].
+
+        [1]: http://wiki.nginx.org/XSendfile
+
+        """
+        raise NotImplementedError(
+            'You must implement image_sendfile_uri(self, image) on your '
+            'storage {0}'
+            .format(self.__class__.__name__))
+
+    def image_redirect_url(self, image):
+        """Get a redirect URL for an image layer.
+
+        This optional method gives us a URL to which client can be
+        redirected to get the content from the path.
+
+        Note, this feature will only be used if the `storage_redirect`
+        configuration key is set to `True`.
+
+        """
+        raise NotImplementedError(
+            'You must implement image_redirect_url(self, image) on your
+            storage {0}'
+            .format(self.__class__.__name__))
+
+    def get_image_metadata(self, image):
+        "Get an image's Docker metadata (e.g. 'docker inspect IMAGE')."
+        raise NotImplementedError(
+            'You must implement get_image_metadata(self, image) on your
+            storage {0}'
+            .format(self.__class__.__name__))
+
+
+class FileStorage(Storage):
+
+    """A convenience class for filesystem-based storage.
+
+    Inheriting this class allows you to provide the full Storage API
+    by only writing a few methods:
+
+    * _exists
+    * 
 
     :param host: host name
     :type host: unicode
@@ -76,6 +177,7 @@ class Base(object):
     :type port: int
     :param basepath: base path (will be prepended to actual requests)
     :type basepath: unicode
+
     """
 
     # Useful if we want to change those locations later without rewriting
@@ -87,51 +189,45 @@ class Base(object):
         return '{0}/{1}/{2}'.format(
             self.repositories, namespace, repository)
 
-    # Set the IO buffer to 128kB
-    buffer_size = 128 * 1024
-    # By default no storage plugin supports it
-    supports_bytes_range = False
-
     def __init__(self, path=None, config=None):
         pass
 
-    # FIXME(samalba): Move all path resolver in each module (out of the base)
     @filter_args
-    def images_list_path(self, namespace, repository):
+    def _images_list_path(self, namespace, repository):
         repository_path = self._repository_path(
             namespace=namespace, repository=repository)
         return '{0}/_images_list'.format(repository_path)
 
     @filter_args
-    def image_json_path(self, image_id):
-        return '{0}/{1}/json'.format(self.images, image_id)
+    def _image_json_path(self, image):
+        return '{0}/{1}/json'.format(self.images, image)
 
     @filter_args
-    def image_mark_path(self, image_id):
-        return '{0}/{1}/_inprogress'.format(self.images, image_id)
+    def _image_mark_path(self, image):
+        return '{0}/{1}/_inprogress'.format(self.images, image)
 
     @filter_args
-    def image_checksum_path(self, image_id):
-        return '{0}/{1}/_checksum'.format(self.images, image_id)
+    def _image_checksum_path(self, image):
+        return '{0}/{1}/_checksum'.format(self.images, image)
 
     @filter_args
-    def image_layer_path(self, image_id):
-        return '{0}/{1}/layer'.format(self.images, image_id)
+    def _image_layer_path(self, image):
+        return '{0}/{1}/layer'.format(self.images, image)
 
     @filter_args
-    def image_ancestry_path(self, image_id):
-        return '{0}/{1}/ancestry'.format(self.images, image_id)
+    def _image_ancestry_path(self, image):
+        return '{0}/{1}/ancestry'.format(self.images, image)
 
     @filter_args
-    def image_files_path(self, image_id):
-        return '{0}/{1}/_files'.format(self.images, image_id)
+    def _image_files_path(self, image):
+        return '{0}/{1}/_files'.format(self.images, image)
 
     @filter_args
-    def image_diff_path(self, image_id):
-        return '{0}/{1}/_diff'.format(self.images, image_id)
+    def _image_diff_path(self, image):
+        return '{0}/{1}/_diff'.format(self.images, image)
 
     @filter_args
-    def repository_path(self, namespace, repository):
+    def _repository_path(self, namespace, repository):
         return '{0}/{1}/{2}'.format(
             self.repositories, namespace, repository)
 
@@ -232,11 +328,14 @@ class Base(object):
             "on your storage %s" %
             self.__class__.__name__)
 
-    def exists(self, path):
-        """Method to test exists."""
+    def _exists(self, path):
+        "Do we have 'path' in storage?  True/False."
         raise NotImplementedError(
             "You must implement exists(self, path) on your storage %s" %
             self.__class__.__name__)
+
+    def image_exists(self, image):
+        return self._exists(path=self._image_mark_path(image=image))
 
     def remove(self, path):
         """Method to remove."""

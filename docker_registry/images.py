@@ -32,7 +32,7 @@ def require_completion(f):
     """This make sure that the image push correctly finished."""
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
-        if store.exists(store.image_mark_path(kwargs['image_id'])):
+        if store.image_exists(image=kwargs['image_id']):
             return toolkit.api_error('Image is being uploaded, retry later')
         return f(*args, **kwargs)
     return wrapper
@@ -65,38 +65,39 @@ def _get_image_layer(image_id, headers=None, bytes_range=None):
 
     headers['Content-Type'] = 'application/octet-stream'
     accel_uri_prefix = cfg.nginx_x_accel_redirect
-    path = store.image_layer_path(image_id)
     if accel_uri_prefix:
-        if store.scheme == 'file':
-            accel_uri = '/'.join([accel_uri_prefix, path])
+        try:
+            uri = store.image_sendfile_uri(image=image_id)
+        except NotImplementedError:
+            logger.warn(
+                'nginx_x_accel_redirect config set, '
+                "but storage doesn't support image sendfile URIs")
+        else:
+            accel_uri = '/'.join([accel_uri_prefix, uri])
             headers['X-Accel-Redirect'] = accel_uri
             logger.debug('send accelerated {0} ({1})'.format(
                 accel_uri, headers))
             return flask.Response('', headers=headers)
-        else:
-            logger.warn('nginx_x_accel_redirect config set,'
-                        ' but storage is not LocalStorage')
 
     # If store allows us to just redirect the client let's do that, we'll
     # offload a lot of expensive I/O and get faster I/O
     if cfg.storage_redirect:
         try:
-            content_redirect_url = store.content_redirect_url(path)
-            if content_redirect_url:
-                return flask.redirect(content_redirect_url, 302)
-        except IOError as e:
-            logger.debug(str(e))
+            url = store.image_redirect_url(image=image_id)
+        except NotImplementedError:
+            logger.warn(
+                'storage_redirect set, '
+                "but storage doesn't support image redirect URLs")
+        else:
+            try:
+                return flask.redirect(url, 302)
+            except IOError as e:
+                logger.debug(str(e))
 
     status = None
     layer_size = 0
 
-    if not store.exists(path):
-        raise exceptions.FileNotFoundError("Image layer absent from store")
-    try:
-        layer_size = store.get_size(path)
-    except exceptions.FileNotFoundError:
-        # XXX why would that fail given we know the layer exists?
-        pass
+    layer_size = store.image_size(image=image_id)
     if bytes_range and bytes_range[1] == -1 and not layer_size == 0:
         bytes_range = (bytes_range[0], layer_size)
 
@@ -112,16 +113,17 @@ def _get_image_layer(image_id, headers=None, bytes_range=None):
         headers['Content-Length'] = layer_size
     else:
         return flask.Response(status=416, headers=headers)
-    return flask.Response(store.stream_read(path, bytes_range),
-                          headers=headers, status=status)
+    return flask.Response(
+        store.image_stream_read(image=image, bytes_range=bytes_range),
+        headers=headers, status=status)
 
 
 def _get_image_json(image_id, headers=None):
     if headers is None:
         headers = {}
-    data = store.get_content(store.image_json_path(image_id))
+    data = store.get_image_metadata(image=image_id)
     try:
-        size = store.get_size(store.image_layer_path(image_id))
+        size = store.get_image_size(image=image_id)
         headers['X-Docker-Size'] = str(size)
     except exceptions.FileNotFoundError:
         pass
@@ -175,12 +177,10 @@ def _valid_bytes_range(bytes_range):
 @mirroring.source_lookup(cache=True, stream=True)
 def get_image_layer(image_id, headers):
     try:
-        bytes_range = None
-        if store.supports_bytes_range:
-            headers['Accept-Ranges'] = 'bytes'
-            bytes_range = _parse_bytes_range()
+        headers['Accept-Ranges'] = 'bytes'
+        bytes_range = _parse_bytes_range()
         repository = toolkit.get_repository()
-        if repository and store.is_private(*repository):
+        if repository and store.image_is_private(image=image_id):
             if not toolkit.validate_parent_access(image_id):
                 return toolkit.api_error('Image not found', 404)
         # If no auth token found, either standalone registry or privileged
@@ -194,7 +194,7 @@ def get_image_layer(image_id, headers):
 @toolkit.requires_auth
 def put_image_layer(image_id):
     try:
-        json_data = store.get_content(store.image_json_path(image_id))
+        json_data = store.get_image_metadata(image=image_id)
     except exceptions.FileNotFoundError:
         return toolkit.api_error('Image not found', 404)
     layer_path = store.image_layer_path(image_id)

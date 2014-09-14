@@ -30,7 +30,7 @@ from ..core import exceptions
 from ..core import lru
 
 
-class Storage(driver.Base):
+class Storage(driver.FileStorage):
 
     supports_bytes_range = True
 
@@ -143,3 +143,5 @@ class Storage(driver.Base):
             return os.path.getsize(path)
         except OSError:
             raise exceptions.FileNotFoundError('%s is not there' % path)
+
+    image_layer_uri = FileStorage._image_layer_path
