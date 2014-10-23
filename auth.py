@@ -9,6 +9,8 @@ import aiohttp.web
 def auth(request):
     if request.headers.get('X-My-Auth') == 'open sesame':
         return aiohttp.web.Response(request=request, status=200)
+    if request.headers.get('X-My-Auth') == 'sleep':
+        yield from asyncio.sleep(10)
     return aiohttp.web.Response(request=request, status=403)
 
 

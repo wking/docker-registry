@@ -15,9 +15,21 @@ class TestRegistry(unittest.TestCase):
             headers={'X-My-Auth': 'open sesame'}, **kwargs)
         return urllib.request.urlopen(url=request, timeout=5)
 
+    def test_auth_timeout(self):
+        request = urllib.request.Request(
+            url=REGISTRY_URL, headers={'X-My-Auth': 'sleep'})
+        try:
+            result = urllib.request.urlopen(url=request, timeout=15)
+        except urllib.error.HTTPError as e:
+            self.assertEqual(e.code, 504)
+        else:
+            raise RuntimeError(
+                'auth timeout registry request returned {}'.format(
+                    result.status))
+
     def test_forbidden(self):
         try:
-            result = urllib.request.urlopen(url=REGISTRY_URL)
+            result = urllib.request.urlopen(url=REGISTRY_URL, timeout=5)
         except urllib.error.HTTPError as e:
             self.assertEqual(e.code, 403)
         else:
