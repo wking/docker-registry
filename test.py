@@ -29,16 +29,16 @@ class TestRegistry(unittest.TestCase):
         key = 'test-post-atomic'
         data = os.urandom(8)
         result = self._auth_request(
-            url=REGISTRY_URL + key, data=data, method='POST')
+            url=REGISTRY_URL + 'atomic/' + key, data=data, method='POST')
         self.assertEqual(result.status, 200)
 
     def test_get_atomic(self):
         key = 'test-get-atomic'
         data = os.urandom(8)
         result = self._auth_request(
-            url=REGISTRY_URL + key, data=data, method='POST')
+            url=REGISTRY_URL + 'atomic/' + key, data=data, method='POST')
         self.assertEqual(result.status, 200)
         result = self._auth_request(
-            url=REGISTRY_URL + key, method='GET')
+            url=REGISTRY_URL + 'atomic/' + key, method='GET')
         self.assertEqual(result.status, 200)
         self.assertEqual(result.read(), data)
