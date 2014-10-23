@@ -12,6 +12,7 @@ registry:
   image: nginx:1.7.6
   links:
     - atomicStorage
+    - streamingStorage
   volumes:
     - registry.conf:/etc/nginx/nginx.conf
   expose:
@@ -30,5 +31,13 @@ atomicStorage:
   command: bash -c 'pip install git+git://github.com/KeepSafe/aiohttp.git && python /atomic-storage.py'
   volumes:
     - atomic-storage.py:/atomic-storage.py
+  expose:
+    - "80"
+
+streamingStorage:
+  image: python:3.4
+  command: bash -c 'pip install git+git://github.com/KeepSafe/aiohttp.git && python /streaming-storage.py'
+  volumes:
+    - streaming-storage.py:/streaming-storage.py
   expose:
     - "80"

@@ -42,3 +42,21 @@ class TestRegistry(unittest.TestCase):
             url=REGISTRY_URL + 'atomic/' + key, method='GET')
         self.assertEqual(result.status, 200)
         self.assertEqual(result.read(), data)
+
+    def test_post_streaming(self):
+        key = 'test-post-streaming'
+        data = os.urandom(8192)
+        result = self._auth_request(
+            url=REGISTRY_URL + 'streaming/' + key, data=data, method='POST')
+        self.assertEqual(result.status, 200)
+
+    def test_get_streaming(self):
+        key = 'test-get-streaming'
+        data = os.urandom(8192)
+        result = self._auth_request(
+            url=REGISTRY_URL + 'streaming/' + key, data=data, method='POST')
+        self.assertEqual(result.status, 200)
+        result = self._auth_request(
+            url=REGISTRY_URL + 'streaming/' + key, method='GET')
+        self.assertEqual(result.status, 200)
+        self.assertEqual(result.read(), data)
