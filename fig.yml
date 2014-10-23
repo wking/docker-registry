@@ -1,6 +1,7 @@
 nginx:
   image: nginx:1.7.6
   links:
+    - auth
     - registry
   volumes:
     - nginx.conf:/etc/nginx/nginx.conf
@@ -10,5 +11,13 @@ nginx:
 registry:
   image: python:3.4
   command: python -m http.server 80
+  expose:
+    - "80"
+
+auth:
+  image: python:3.4
+  command: bash -c 'pip install git+git://github.com/KeepSafe/aiohttp.git && python /auth.py'
+  volumes:
+    - auth.py:/auth.py
   expose:
     - "80"
