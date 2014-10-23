@@ -1,0 +1,14 @@
+nginx:
+  image: nginx:1.7.6
+  links:
+    - registry
+  volumes:
+    - nginx.conf:/etc/nginx/nginx.conf
+  ports:
+    - "8080:80"
+
+registry:
+  image: python:3.4
+  command: python -m http.server 80
+  expose:
+    - "80"
