@@ -10,7 +10,9 @@ nginx:
 
 registry:
   image: python:3.4
-  command: python -m http.server 80
+  command: bash -c 'pip install git+git://github.com/KeepSafe/aiohttp.git && python /registry.py'
+  volumes:
+    - registry.py:/registry.py
   expose:
     - "80"
 
