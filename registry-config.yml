@@ -1,5 +1,3 @@
-registry_endpoints: localhost:8888
-
 # All other flavors inherit the `common' config snippet
 common: &common
     # Default log level is info
@@ -144,6 +142,7 @@ elliptics:
 # This is the default configuration when no flavor is specified
 dev: &dev
     <<: *local
+    registry_endpoints: localhost:8888
     loglevel: _env:LOGLEVEL:debug
     search_backend: _env:SEARCH_BACKEND:sqlalchemy
 
